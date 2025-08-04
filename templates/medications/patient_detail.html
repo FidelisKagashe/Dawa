@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ patient.get_full_name }} - Patient Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Patient Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-1">
+                                <i class="bi bi-person-circle"></i> 
+                                {{ patient.get_full_name }}
+                            </h3>
+                            <p class="text-muted mb-2">
+                                MRN: {{ patient.medical_record_number }} | 
+                                Phone: {{ patient.phone_number }} | 
+                                Email: {{ patient.email }}
+                            </p>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-primary">Compliance: {{ compliance_rate }}%</span>
+                                <span class="badge bg-success">Active Prescriptions: {{ active_prescriptions.count }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'reports:generate_report' patient.id %}" class="btn btn-primary">
+                                <i class="bi bi-file-text"></i> Generate Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Active Prescriptions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-prescription2"></i> 
+                        Active Prescriptions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if active_prescriptions %}
+                    <div class="row">
+                        {% for prescription in active_prescriptions %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card medication-card {{ prescription.priority }}-priority">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ prescription.medication.name }}</h6>
+                                    <p class="text-muted mb-1">{{ prescription.dosage }}</p>
+                                    <p class="text-muted mb-1">{{ prescription.get_frequency_display }}</p>
+                                    <p class="small mb-2">
+                                        <strong>Physician:</strong> {{ prescription.prescribing_physician }}
+                                    </p>
+                                    <p class="small mb-2">
+                                        <strong>Period:</strong> {{ prescription.start_date }} 
+                                        {% if prescription.end_date %} to {{ prescription.end_date }}{% endif %}
+                                    </p>
+                                    <span class="badge bg-{{ prescription.priority }}">
+                                        {{ prescription.get_priority_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-prescription2 text-muted" style="font-size: 3rem;"></i>
+                        <h6 class="text-muted mt-3">No active prescriptions</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Recent Medication History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i> 
+                        Recent Medication History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_intakes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Medication</th>
+                                    <th>Scheduled</th>
+                                    <th>Status</th>
+                                    <th>Actual Time</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for intake in recent_intakes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ intake.prescription.medication.name }}</strong><br>
+                                        <small class="text-muted">{{ intake.prescription.dosage }}</small>
+                                    </td>
+                                    <td>{{ intake.scheduled_datetime|date:"M d, Y g:i A" }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ intake.status }}">
+                                            {{ intake.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if intake.actual_datetime %}
+                                        {{ intake.actual_datetime|date:"M d, Y g:i A" }}
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if intake.notes %}
+                                        {{ intake.notes|truncatechars:50 }}
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-list-ul text-muted" style="font-size: 3rem;"></i>
+                        <h6 class="text-muted mt-3">No medication history available</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

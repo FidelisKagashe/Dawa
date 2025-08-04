@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Medication History - MedCare{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-clock-history"></i> 
+                        Your Medication History
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if medication_history %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Medication</th>
+                                    <th>Dosage</th>
+                                    <th>Status</th>
+                                    <th>Actual Time Taken</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for intake in medication_history %}
+                                <tr>
+                                    <td>{{ intake.scheduled_datetime|date:"M d, Y g:i A" }}</td>
+                                    <td>{{ intake.prescription.medication.name }}</td>
+                                    <td>{{ intake.prescription.dosage }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ intake.status }}">
+                                            {{ intake.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if intake.actual_datetime %}
+                                        {{ intake.actual_datetime|date:"M d, Y g:i A" }}
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if intake.notes %}
+                                        {{ intake.notes }}
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Medication history pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-list-ul text-muted" style="font-size: 4rem;"></i>
+                        <h5 class="text-muted mt-3">No medication history available</h5>
+                        <p class="text-muted">Your medication intake history will appear here once you start taking medications.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

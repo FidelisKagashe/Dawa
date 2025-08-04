@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Send Manual Notification - MedCare{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-chat-text"></i> 
+                    Send Manual Notification
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="patient_id" class="form-label">Select Patient</label>
+                        <select name="patient_id" id="patient_id" class="form-control" required>
+                            <option value="">Choose a patient...</option>
+                            {% for patient in patients %}
+                            <option value="{{ patient.id }}">
+                                {{ patient.get_full_name }} ({{ patient.medical_record_number }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea name="message" id="message" class="form-control" rows="4" 
+                                  placeholder="Enter your message here..." required></textarea>
+                        <div class="form-text">Keep your message clear and concise.</div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Send Notification
+                        </button>
+                        <a href="{% url 'medications:admin_dashboard' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

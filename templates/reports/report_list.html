@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Progress Reports - MedCare{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-text"></i> 
+                        {% if user.is_admin %}All Progress Reports{% else %}My Progress Reports{% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if reports %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Report Title</th>
+                                    {% if user.is_admin %}<th>Patient</th>{% endif %}
+                                    <th>Type</th>
+                                    <th>Period</th>
+                                    <th>Compliance Rate</th>
+                                    <th>Generated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>{{ report.title }}</td>
+                                    {% if user.is_admin %}
+                                    <td>{{ report.patient.get_full_name }}</td>
+                                    {% endif %}
+                                    <td>{{ report.get_report_type_display }}</td>
+                                    <td>
+                                        {{ report.report_period_start|date:"M d" }} - 
+                                        {{ report.report_period_end|date:"M d, Y" }}
+                                    </td>
+                                    <td>
+                                        {% if report.compliance_rate %}
+                                        <span class="badge bg-{% if report.compliance_rate >= 80 %}success{% elif report.compliance_rate >= 60 %}warning{% else %}danger{% endif %}">
+                                            {{ report.compliance_rate }}%
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ report.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if report.pdf_file %}
+                                        <a href="{% url 'reports:download_pdf' report.id %}" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-download"></i> Download PDF
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">No PDF available</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <nav aria-label="Reports pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-file-text text-muted" style="font-size: 4rem;"></i>
+                        <h5 class="text-muted mt-3">No reports available</h5>
+                        {% if user.is_admin %}
+                        <p class="text-muted">Generate reports for patients to see them here.</p>
+                        {% else %}
+                        <p class="text-muted">Your progress reports will appear here once generated by your healthcare provider.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

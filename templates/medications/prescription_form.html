@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Prescription - MedCare{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-plus-circle"></i> 
+                    Create New Prescription
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.patient|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.medication|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.prescribing_physician|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.dosage|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.frequency|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.start_date|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.end_date|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.priority|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.special_instructions|as_crispy_field }}
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Prescription
+                        </button>
+                        <a href="{% url 'medications:admin_dashboard' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
