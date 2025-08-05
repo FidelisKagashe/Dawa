@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from datetime import datetime, timedelta
 import uuid
 
 User = get_user_model()
@@ -84,6 +85,29 @@ class MedicationSchedule(models.Model):
     class Meta:
         ordering = ['scheduled_time']
 
+class DailyMedicationSchedule(models.Model):
+    """Daily medication schedule for a specific prescription"""
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name='daily_schedules')
+    date = models.DateField()
+    time_slot = models.TimeField()
+    is_taken = models.BooleanField(default=False)
+    taken_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.prescription.medication.name} - {self.date} at {self.time_slot}"
+    
+    @property
+    def is_overdue(self):
+        if not self.is_taken:
+            scheduled_datetime = timezone.datetime.combine(self.date, self.time_slot)
+            return timezone.now() > timezone.make_aware(scheduled_datetime)
+        return False
+    
+    class Meta:
+        ordering = ['date', 'time_slot']
+        unique_together = ['prescription', 'date', 'time_slot']
 class MedicationIntake(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),

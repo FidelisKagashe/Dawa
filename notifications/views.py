@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 
 from .models import SMSNotification
-from .services import SMSService  # ← changed
+from .services import NotificationService
 
 User = get_user_model()
 
@@ -37,12 +37,13 @@ def send_manual_notification(request):
 
         try:
             patient = User.objects.get(id=patient_id, user_type='patient')
-            if not patient.phone_number:
-                messages.error(request, "Patient doesn't have a phone number")
+            if not patient.email:
+                messages.error(request, "Patient doesn't have an email address")
             else:
-                sms = SMSService()  # ← instantiate here
-                success = sms.send_sms(
-                    to_number=patient.phone_number,
+                notification_service = NotificationService()
+                success = notification_service.send_email_notification(
+                    to_email=patient.email,
+                    subject="Manual Notification from Hospital",
                     message=message,
                     notification_type='general',
                     recipient=patient

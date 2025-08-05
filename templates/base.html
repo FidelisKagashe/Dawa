@@ -20,11 +20,124 @@
             --info-color: #2563EB;
             --light-bg: #F8FAFC;
             --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --sidebar-width: 280px;
         }
         
         body {
             background-color: var(--light-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1e40af 0%, #1d4ed8 100%);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 0 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            background: none;
+        }
+        
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        .nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+        
+        .top-bar {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .content-area {
+            padding: 2rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
         }
         
         .navbar-brand {
@@ -43,6 +156,34 @@
             transform: translateY(-2px);
         }
         
+        .medication-schedule-card {
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .medication-schedule-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .medication-schedule-card.taken {
+            background-color: #f0fdf4;
+            border-left-color: var(--success-color);
+        }
+        
+        .medication-schedule-card.overdue {
+            background-color: #fef2f2;
+            border-left-color: var(--danger-color);
+        }
+        
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
         .btn-primary {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
@@ -55,22 +196,6 @@
             background-color: #1d4ed8;
             border-color: #1d4ed8;
             transform: translateY(-1px);
-        }
-        
-        .medication-card {
-            border-left: 4px solid var(--primary-color);
-        }
-        
-        .medication-card.high-priority {
-            border-left-color: var(--danger-color);
-        }
-        
-        .medication-card.medium-priority {
-            border-left-color: var(--warning-color);
-        }
-        
-        .medication-card.low-priority {
-            border-left-color: var(--success-color);
         }
         
         .status-badge {
@@ -107,33 +232,33 @@
             padding: 1.5rem;
         }
         
-        .sidebar {
-            background-color: white;
-            box-shadow: var(--card-shadow);
-            min-height: calc(100vh - 56px);
-        }
-        
-        .sidebar .nav-link {
-            color: #6B7280;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.25rem;
-            transition: all 0.2s ease-in-out;
-        }
-        
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background-color: var(--light-bg);
-            color: var(--primary-color);
-        }
-        
-        .main-content {
-            padding: 2rem;
+        .sidebar-toggle {
+            display: none;
         }
         
         @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
             .main-content {
+                margin-left: 0;
+            }
+            
+            .content-area {
                 padding: 1rem;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .schedule-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -141,118 +266,188 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'medications:dashboard' %}">
-                <i class="bi bi-heart-pulse"></i> MedCare System
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                {% if user.is_authenticated %}
-                <ul class="navbar-nav me-auto">
-                    {% if user.is_patient %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'medications:dashboard' %}">
-                            <i class="bi bi-house"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'medications:medication_history' %}">
-                            <i class="bi bi-clock-history"></i> History
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reports:report_list' %}">
-                            <i class="bi bi-file-text"></i> Reports
-                        </a>
-                    </li>
-                    {% elif user.can_manage_patients %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'medications:admin_dashboard' %}">
-                            <i class="bi bi-speedometer2"></i> 
-                            {% if user.can_manage_staff %}IT Dashboard{% else %}Staff Dashboard{% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'medications:prescription_create' %}">
-                            <i class="bi bi-plus-circle"></i> New Prescription
-                        </a>
-                    </li>
-                    {% if user.can_manage_staff %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'accounts:staff_register' %}">
-                            <i class="bi bi-person-plus"></i> Add Staff
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reports:report_list' %}">
-                            <i class="bi bi-graph-up"></i> Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'notifications:history' %}">
-                            <i class="bi bi-bell"></i> Notifications
-                        </a>
-                    </li>
-                    {% if user.can_manage_staff %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/">
-                            <i class="bi bi-gear"></i> Django Admin
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% endif %}
-                </ul>
-                
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i> 
-                            {{ user.get_full_name|default:user.username }}
-                            {% if user.can_manage_staff %}
-                            <span class="badge bg-danger ms-1">IT</span>
-                            {% elif user.can_manage_patients %}
-                            <span class="badge bg-primary ms-1">Staff</span>
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:logout' %}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-                {% endif %}
+    {% if user.is_authenticated %}
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="{% if user.is_patient %}{% url 'medications:dashboard' %}{% else %}{% url 'medications:admin_dashboard' %}{% endif %}" class="sidebar-brand">
+                    <i class="bi bi-heart-pulse"></i>
+                    MedCare
+                </a>
             </div>
-        </div>
-    </nav>
-    
-    <!-- Main Content -->
-    <main class="{% if user.is_authenticated %}container-fluid{% else %}container{% endif %}">
-        {% if messages %}
-        <div class="row">
-            <div class="col-12">
+            
+            <div class="sidebar-nav">
+                {% if user.is_patient %}
+                <!-- Patient Navigation -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Patient Portal</div>
+                    <a href="{% url 'medications:dashboard' %}" class="nav-link">
+                        <i class="bi bi-house"></i>
+                        Dashboard
+                    </a>
+                    <a href="{% url 'medications:medication_history' %}" class="nav-link">
+                        <i class="bi bi-clock-history"></i>
+                        Medication History
+                    </a>
+                    <a href="{% url 'reports:report_list' %}" class="nav-link">
+                        <i class="bi bi-file-text"></i>
+                        My Reports
+                    </a>
+                </div>
+                {% elif user.can_manage_patients %}
+                <!-- Staff/Admin Navigation -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Dashboard</div>
+                    <a href="{% url 'medications:admin_dashboard' %}" class="nav-link">
+                        <i class="bi bi-speedometer2"></i>
+                        {% if user.can_manage_staff %}IT Dashboard{% else %}Staff Dashboard{% endif %}
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Patient Management</div>
+                    <a href="{% url 'medications:prescription_create' %}" class="nav-link">
+                        <i class="bi bi-plus-circle"></i>
+                        New Prescription
+                    </a>
+                    <a href="{% url 'medications:user_create' %}" class="nav-link">
+                        <i class="bi bi-person-plus"></i>
+                        Create User
+                    </a>
+                    <a href="{% url 'medications:medication_create' %}" class="nav-link">
+                        <i class="bi bi-capsule"></i>
+                        Add Medication
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Reports & Communication</div>
+                    <a href="{% url 'reports:report_list' %}" class="nav-link">
+                        <i class="bi bi-graph-up"></i>
+                        Reports
+                    </a>
+                    <a href="{% url 'notifications:history' %}" class="nav-link">
+                        <i class="bi bi-bell"></i>
+                        Notifications
+                    </a>
+                    <a href="{% url 'notifications:send_manual' %}" class="nav-link">
+                        <i class="bi bi-chat-text"></i>
+                        Send Message
+                    </a>
+                </div>
+                
+                {% if user.can_manage_staff %}
+                <div class="nav-section">
+                    <div class="nav-section-title">System Administration</div>
+                    <a href="{% url 'accounts:staff_register' %}" class="nav-link">
+                        <i class="bi bi-person-badge"></i>
+                        Add Staff
+                    </a>
+                    <a href="/admin/" class="nav-link">
+                        <i class="bi bi-gear"></i>
+                        Django Admin
+                    </a>
+                </div>
+                {% endif %}
+                {% endif %}
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-person"></i>
+                        Profile
+                    </a>
+                    <a href="{% url 'accounts:logout' %}" class="nav-link">
+                        <i class="bi bi-box-arrow-right"></i>
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-link sidebar-toggle d-md-none" onclick="toggleSidebar()">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h5 class="mb-0 ms-2">{% block page_title %}Dashboard{% endblock %}</h5>
+                </div>
+                
+                <div class="user-info">
+                    <div class="user-avatar">
+                        {{ user.first_name|first|default:user.username|first|upper }}
+                    </div>
+                    <div>
+                        <div class="fw-semibold">{{ user.get_full_name|default:user.username }}</div>
+                        <small class="text-muted">
+                            {% if user.can_manage_staff %}
+                            Hospital IT
+                            {% elif user.can_manage_patients %}
+                            Hospital Staff
+                            {% else %}
+                            Patient
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div class="content-area">
+                {% if messages %}
                 {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 {% endfor %}
+                {% endif %}
+                
+                {% block content %}{% endblock %}
             </div>
         </div>
+    </div>
+    {% else %}
+    <!-- Login/Register Layout -->
+    <div class="container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
         {% endif %}
         
         {% block content %}{% endblock %}
-    </main>
+    </div>
+    {% endif %}
     
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.sidebar-toggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggle.contains(event.target)) {
+                sidebar.classList.remove('show');
+            }
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

@@ -1,16 +1,16 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DetailView
+from django.views.generic import ListView, CreateView, UpdateView, DetailView, TemplateView
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db.models import Q, Count
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 
-from .models import Prescription, MedicationIntake, Medication, MedicationSchedule
-from .forms import PrescriptionForm, MedicationIntakeForm
+from .models import Prescription, MedicationIntake, Medication, MedicationSchedule, DailyMedicationSchedule
+from .forms import PrescriptionForm, MedicationIntakeForm, MedicationForm, UserCreationByAdminForm, DailyScheduleConfirmForm
 from accounts.models import User, PatientProfile
 
 logger = logging.getLogger(__name__)
@@ -36,13 +36,33 @@ class PatientDashboardView(LoginRequiredMixin, ListView):
         user = self.request.user
         
         if user.is_patient:
-            # Get today's medications
+            # Get today's medication schedule in card format
             today = timezone.now().date()
-            context['todays_medications'] = MedicationIntake.objects.filter(
+            
+            # Get daily schedules for today
+            daily_schedules = DailyMedicationSchedule.objects.filter(
                 prescription__patient=user,
                 prescription__is_active=True,
-                scheduled_datetime__date=today
-            ).order_by('scheduled_datetime')
+                date=today
+            ).order_by('time_slot')
+            
+            context['daily_schedules'] = daily_schedules
+            
+            # Get upcoming schedules for next 7 days
+            upcoming_schedules = DailyMedicationSchedule.objects.filter(
+                prescription__patient=user,
+                prescription__is_active=True,
+                date__range=[today, today + timedelta(days=7)]
+            ).order_by('date', 'time_slot')
+            
+            # Group by date for card display
+            schedule_by_date = {}
+            for schedule in upcoming_schedules:
+                if schedule.date not in schedule_by_date:
+                    schedule_by_date[schedule.date] = []
+                schedule_by_date[schedule.date].append(schedule)
+            
+            context['schedule_by_date'] = schedule_by_date
             
             # Get recent history
             context['recent_history'] = MedicationIntake.objects.filter(
@@ -141,6 +161,7 @@ class PrescriptionCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView
         
         times = frequency_times.get(prescription.frequency, ['09:00'])
         
+        # Create base schedule
         for time_str in times:
             hour, minute = map(int, time_str.split(':'))
             scheduled_time = timezone.datetime.strptime(time_str, '%H:%M').time()
@@ -149,10 +170,58 @@ class PrescriptionCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView
                 prescription=prescription,
                 scheduled_time=scheduled_time
             )
+        
+        # Create daily schedules for the prescription period
+        self.create_daily_schedules(prescription, times)
+    
+    def create_daily_schedules(self, prescription, times):
+        """Create daily medication schedules for the prescription period"""
+        start_date = prescription.start_date
+        end_date = prescription.end_date or (start_date + timedelta(days=30))  # Default 30 days if no end date
+        
+        current_date = start_date
+        while current_date <= end_date:
+            for time_str in times:
+                time_obj = timezone.datetime.strptime(time_str, '%H:%M').time()
+                
+                # Check if schedule already exists
+                if not DailyMedicationSchedule.objects.filter(
+                    prescription=prescription,
+                    date=current_date,
+                    time_slot=time_obj
+                ).exists():
+                    DailyMedicationSchedule.objects.create(
+                        prescription=prescription,
+                        date=current_date,
+                        time_slot=time_obj
+                    )
+            
+            current_date += timedelta(days=1)
     
     def get_success_url(self):
         return f"/medications/admin/patient/{self.object.patient.id}/"
 
+@login_required
+def confirm_daily_medication(request, schedule_id):
+    """Confirm daily medication intake"""
+    schedule = get_object_or_404(DailyMedicationSchedule, id=schedule_id)
+    
+    if request.user != schedule.prescription.patient:
+        messages.error(request, "You can only confirm your own medications.")
+        return redirect('medications:dashboard')
+    
+    if request.method == 'POST':
+        schedule.is_taken = True
+        schedule.taken_at = timezone.now()
+        schedule.notes = request.POST.get('notes', '')
+        schedule.save()
+        
+        messages.success(request, f"Medication confirmed: {schedule.prescription.medication.name}")
+        logger.info(f"Daily medication confirmed: {schedule}")
+        
+        return JsonResponse({'status': 'success'})
+    
+    return JsonResponse({'status': 'error'})
 @login_required
 def confirm_medication_intake(request, intake_id):
     intake = get_object_or_404(MedicationIntake, id=intake_id)
@@ -212,6 +281,38 @@ class PatientDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         context['compliance_rate'] = round((taken_medications / total_medications * 100) if total_medications > 0 else 0, 1)
         
         return context
+
+class MedicationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Medication
+    form_class = MedicationForm
+    template_name = 'medications/medication_form.html'
+    success_url = '/medications/admin-dashboard/'
+    
+    def test_func(self):
+        return self.request.user.can_manage_patients
+    
+    def form_valid(self, form):
+        messages.success(self.request, f"Medication '{form.instance.name}' created successfully!")
+        return super().form_valid(form)
+
+class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = User
+    form_class = UserCreationByAdminForm
+    template_name = 'medications/user_form.html'
+    success_url = '/medications/admin-dashboard/'
+    
+    def test_func(self):
+        return self.request.user.can_manage_patients
+    
+    def form_valid(self, form):
+        user = form.save()
+        
+        # Create patient profile if user is a patient
+        if user.user_type == 'patient':
+            PatientProfile.objects.create(user=user)
+        
+        messages.success(self.request, f"User '{user.get_full_name()}' created successfully!")
+        return super().form_valid(form)
 
 class MedicationHistoryView(LoginRequiredMixin, ListView):
     template_name = 'medications/medication_history.html'

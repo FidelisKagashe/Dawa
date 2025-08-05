@@ -3,69 +3,49 @@
 import logging
 from django.conf import settings
 from django.utils import timezone
-from twilio.rest import Client
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from .models import SMSNotification, NotificationTemplate
 
 logger = logging.getLogger(__name__)
 
-class SMSService:
+class NotificationService:
     def __init__(self):
-        self._client = None
-        self.from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+        self.from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@medcare.com')
 
-    @property
-    def client(self):
-        # Lazy-init Twilio client only if credentials are present
-        if self._client is None:
-            sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
-            token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-            if not sid or not token:
-                logger.warning("Twilio credentials missing; running in simulation mode.")
-                return None
-            self._client = Client(sid, token)
-        return self._client
-
-    def send_sms(self, to_number, message, notification_type='general', recipient=None):
-        """Send SMS via Twilio (or simulate) and log it to the DB."""
+    def send_email_notification(self, to_email, subject, message, notification_type='general', recipient=None):
+        """Send email notification and log it to the DB."""
         # Create the notification record
         notification = SMSNotification.objects.create(
             recipient=recipient,
-            phone_number=to_number,
+            phone_number=to_email,  # Using phone_number field for email temporarily
             message=message,
             notification_type=notification_type,
             scheduled_at=timezone.now()
         )
 
-        # Simulation mode if no client
-        if self.client is None:
-            notification.status = 'sent'
-            notification.sent_at = timezone.now()
-            notification.save(update_fields=['status', 'sent_at'])
-            return True
-
-        # Actual send
         try:
-            msg = self.client.messages.create(
-                body=message,
-                from_=self.from_number,
-                to=to_number
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=self.from_email,
+                recipient_list=[to_email],
+                fail_silently=False,
             )
             notification.status = 'sent'
             notification.sent_at = timezone.now()
-            notification.twilio_sid = msg.sid
-            notification.save(update_fields=['status', 'sent_at', 'twilio_sid'])
-            logger.info(f"SMS sent to {to_number}, SID={msg.sid}")
+            notification.save(update_fields=['status', 'sent_at'])
+            logger.info(f"Email sent to {to_email}")
             return True
-
         except Exception as e:
-            logger.error(f"SMS send failed to {to_number}: {e}")
+            logger.error(f"Email send failed to {to_email}: {e}")
             notification.status = 'failed'
             notification.error_message = str(e)
             notification.save(update_fields=['status', 'error_message'])
             return False
 
     def send_medication_reminder(self, prescription, scheduled_datetime):
-        """Send a medication reminder SMS."""
+        """Send a medication reminder email."""
         tpl = NotificationTemplate.objects.filter(
             notification_type='medication_reminder', is_active=True
         ).first()
@@ -83,15 +63,18 @@ class SMSService:
                 f"({prescription.dosage}) at {scheduled_datetime.strftime('%I:%M %p')}."
             )
 
-        return self.send_sms(
-            to_number=prescription.patient.phone_number,
+        subject = f"Medication Reminder - {prescription.medication.name}"
+        
+        return self.send_email_notification(
+            to_email=prescription.patient.email,
+            subject=subject,
             message=body,
             notification_type='medication_reminder',
             recipient=prescription.patient
         )
 
     def send_missed_medication_alert(self, prescription, scheduled_datetime):
-        """Send a missed medication alert SMS."""
+        """Send a missed medication alert email."""
         tpl = NotificationTemplate.objects.filter(
             notification_type='missed_medication', is_active=True
         ).first()
@@ -108,8 +91,11 @@ class SMSService:
                 f"{scheduled_datetime.strftime('%I:%M %p')}. Please take it ASAP."
             )
 
-        return self.send_sms(
-            to_number=prescription.patient.phone_number,
+        subject = f"Missed Medication Alert - {prescription.medication.name}"
+        
+        return self.send_email_notification(
+            to_email=prescription.patient.email,
+            subject=subject,
             message=body,
             notification_type='missed_medication',
             recipient=prescription.patient

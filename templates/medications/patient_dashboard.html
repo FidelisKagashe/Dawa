@@ -1,185 +1,222 @@
 {% extends 'base.html' %}
 
 {% block title %}Patient Dashboard - MedCare{% endblock %}
+{% block page_title %}My Medication Schedule{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Sidebar -->
-    <div class="col-md-3">
-        <div class="sidebar p-3">
-            <h5 class="mb-3">
-                <i class="bi bi-person-circle"></i> 
-                {{ user.get_full_name }}
-            </h5>
-            <p class="text-muted small">
-                MRN: {{ user.medical_record_number }}<br>
-                <span class="badge bg-success">Patient</span>
-            </p>
-            
-            <nav class="nav flex-column">
-                <a class="nav-link active" href="{% url 'medications:dashboard' %}">
-                    <i class="bi bi-house"></i> Dashboard
-                </a>
-                <a class="nav-link" href="{% url 'medications:medication_history' %}">
-                    <i class="bi bi-clock-history"></i> Medication History
-                </a>
-                <a class="nav-link" href="{% url 'reports:report_list' %}">
-                    <i class="bi bi-file-text"></i> My Reports
-                </a>
-            </nav>
-            
-            <div class="mt-4 p-3 bg-light rounded">
-                <h6 class="text-muted">
-                    <i class="bi bi-info-circle"></i> Information
-                </h6>
-                <p class="small mb-0">
-                    Your medication schedule is managed by hospital staff. 
-                    Follow your prescribed medication times and confirm when taken.
-                </p>
+<!-- Dashboard Stats -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="dashboard-stat text-center">
+            <h3>{{ compliance_rate }}%</h3>
+            <p class="mb-0">Weekly Compliance</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ daily_schedules.count }}</h3>
+                <p class="mb-0 text-muted">Today's Medications</p>
             </div>
         </div>
     </div>
-    
-    <!-- Main Content -->
-    <div class="col-md-9">
-        <div class="main-content">
-            <!-- Header Stats -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <div class="dashboard-stat text-center">
-                        <h3>{{ compliance_rate }}%</h3>
-                        <p class="mb-0">Weekly Compliance</p>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3 class="text-primary">{{ todays_medications.count }}</h3>
-                            <p class="mb-0 text-muted">Today's Medications</p>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ active_prescriptions.count }}</h3>
+                <p class="mb-0 text-muted">Active Prescriptions</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Medication Schedule -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-today"></i> 
+            Today's Medication Schedule
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if daily_schedules %}
+        <div class="schedule-grid">
+            {% for schedule in daily_schedules %}
+            <div class="card medication-schedule-card {% if schedule.is_taken %}taken{% elif schedule.is_overdue %}overdue{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h6 class="card-title mb-1">{{ schedule.prescription.medication.name }}</h6>
+                            <p class="text-muted mb-1">{{ schedule.prescription.dosage }}</p>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-clock"></i> 
+                                {{ schedule.time_slot|time:"g:i A" }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            {% if schedule.is_taken %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Taken
+                            </span>
+                            {% elif schedule.is_overdue %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-exclamation-triangle"></i> Overdue
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="bi bi-clock"></i> Pending
+                            </span>
+                            {% endif %}
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h3 class="text-success">{{ active_prescriptions.count }}</h3>
-                            <p class="mb-0 text-muted">Active Prescriptions</p>
-                        </div>
+                    
+                    {% if schedule.prescription.special_instructions %}
+                    <div class="alert alert-info py-2 mb-3">
+                        <small>
+                            <i class="bi bi-info-circle"></i> 
+                            {{ schedule.prescription.special_instructions }}
+                        </small>
                     </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            Priority: 
+                            <span class="badge bg-{{ schedule.prescription.priority }}">
+                                {{ schedule.prescription.get_priority_display }}
+                            </span>
+                        </small>
+                        
+                        {% if not schedule.is_taken %}
+                        <button class="btn btn-success btn-sm confirm-daily-medication" 
+                                data-schedule-id="{{ schedule.id }}">
+                            <i class="bi bi-check-circle"></i> Confirm Taken
+                        </button>
+                        {% else %}
+                        <small class="text-success">
+                            <i class="bi bi-check-circle"></i> 
+                            Taken at {{ schedule.taken_at|time:"g:i A" }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    
+                    {% if schedule.notes %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <strong>Notes:</strong> {{ schedule.notes }}
+                        </small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-            
-            <!-- Today's Medications -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-calendar-today"></i> 
-                        Today's Medication Schedule
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if todays_medications %}
-                    <div class="row">
-                        {% for intake in todays_medications %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card medication-card {{ intake.prescription.priority }}-priority">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="card-title">{{ intake.prescription.medication.name }}</h6>
-                                            <p class="text-muted mb-1">{{ intake.prescription.dosage }}</p>
-                                            <p class="text-muted mb-2">
-                                                <i class="bi bi-clock"></i> 
-                                                {{ intake.scheduled_datetime|time:"g:i A" }}
-                                            </p>
-                                            {% if intake.prescription.special_instructions %}
-                                            <p class="small text-info">
-                                                <i class="bi bi-info-circle"></i> 
-                                                {{ intake.prescription.special_instructions }}
-                                            </p>
-                                            {% endif %}
-                                        </div>
-                                        <span class="status-badge status-{{ intake.status }}">
-                                            {{ intake.get_status_display }}
-                                        </span>
-                                    </div>
-                                    
-                                    {% if intake.status == 'pending' %}
-                                    <div class="mt-3">
-                                        <button class="btn btn-success btn-sm confirm-medication" 
-                                                data-intake-id="{{ intake.id }}">
-                                            <i class="bi bi-check-circle"></i> Confirm Taken
-                                        </button>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-calendar-check text-muted" style="font-size: 3rem;"></i>
+            <h6 class="text-muted mt-3">No medications scheduled for today</h6>
+            <p class="text-muted">Your daily medication schedule will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Weekly Schedule Overview -->
+{% if schedule_by_date %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-week"></i> 
+            Weekly Schedule Overview
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for date, schedules in schedule_by_date.items %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0">
+                            {{ date|date:"l, M d" }}
+                            {% if date == today %}
+                            <span class="badge bg-primary">Today</span>
+                            {% endif %}
+                        </h6>
+                    </div>
+                    <div class="card-body py-2">
+                        {% for schedule in schedules %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small>
+                                <strong>{{ schedule.prescription.medication.name }}</strong><br>
+                                {{ schedule.time_slot|time:"g:i A" }}
+                            </small>
+                            {% if schedule.is_taken %}
+                            <i class="bi bi-check-circle text-success"></i>
+                            {% else %}
+                            <i class="bi bi-circle text-muted"></i>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-calendar-check text-muted" style="font-size: 3rem;"></i>
-                        <h6 class="text-muted mt-3">No medications scheduled for today</h6>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
-            
-            <!-- Recent History -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock-history"></i> 
-                        Recent Medication History
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% if recent_history %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Medication</th>
-                                    <th>Scheduled Time</th>
-                                    <th>Status</th>
-                                    <th>Taken At</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for intake in recent_history %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ intake.prescription.medication.name }}</strong><br>
-                                        <small class="text-muted">{{ intake.prescription.dosage }}</small>
-                                    </td>
-                                    <td>{{ intake.scheduled_datetime|date:"M d, Y g:i A" }}</td>
-                                    <td>
-                                        <span class="status-badge status-{{ intake.status }}">
-                                            {{ intake.get_status_display }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if intake.actual_datetime %}
-                                        {{ intake.actual_datetime|date:"M d, Y g:i A" }}
-                                        {% else %}
-                                        <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-list-ul text-muted" style="font-size: 3rem;"></i>
-                        <h6 class="text-muted mt-3">No medication history available</h6>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+            {% endfor %}
         </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent History -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-clock-history"></i> 
+            Recent Medication History
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if recent_history %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Medication</th>
+                        <th>Scheduled Time</th>
+                        <th>Status</th>
+                        <th>Taken At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for intake in recent_history %}
+                    <tr>
+                        <td>
+                            <strong>{{ intake.prescription.medication.name }}</strong><br>
+                            <small class="text-muted">{{ intake.prescription.dosage }}</small>
+                        </td>
+                        <td>{{ intake.scheduled_datetime|date:"M d, Y g:i A" }}</td>
+                        <td>
+                            <span class="status-badge status-{{ intake.status }}">
+                                {{ intake.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if intake.actual_datetime %}
+                            {{ intake.actual_datetime|date:"M d, Y g:i A" }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-list-ul text-muted" style="font-size: 3rem;"></i>
+            <h6 class="text-muted mt-3">No medication history available</h6>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -187,14 +224,14 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle medication confirmation
-    document.querySelectorAll('.confirm-medication').forEach(button => {
+    // Handle daily medication confirmation
+    document.querySelectorAll('.confirm-daily-medication').forEach(button => {
         button.addEventListener('click', function() {
-            const intakeId = this.dataset.intakeId;
+            const scheduleId = this.dataset.scheduleId;
             const formData = new FormData();
             formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
             
-            fetch(`/medications/intake/confirm/${intakeId}/`, {
+            fetch(`/medications/daily-schedule/confirm/${scheduleId}/`, {
                 method: 'POST',
                 body: formData
             })

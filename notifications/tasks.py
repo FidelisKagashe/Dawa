@@ -1,58 +1,65 @@
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
-from medications.models import MedicationIntake, Prescription
-from .services import sms_service
+from medications.models import MedicationIntake, Prescription, DailyMedicationSchedule
+from .services import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)
 
+notification_service = NotificationService()
 @shared_task
 def send_medication_reminders():
-    """Send SMS reminders for upcoming medications"""
+    """Send email reminders for upcoming medications"""
     now = timezone.now()
     reminder_time = now + timedelta(minutes=15)  # 15 minutes before
     
-    # Get pending medications in the next 15 minutes
-    upcoming_intakes = MedicationIntake.objects.filter(
-        status='pending',
-        scheduled_datetime__range=(now, reminder_time)
+    # Get daily schedules for today that haven't been taken
+    today = now.date()
+    current_time = now.time()
+    reminder_time_obj = (now + timedelta(minutes=15)).time()
+    
+    upcoming_schedules = DailyMedicationSchedule.objects.filter(
+        date=today,
+        is_taken=False,
+        time_slot__range=(current_time, reminder_time_obj)
     )
     
-    for intake in upcoming_intakes:
-        if intake.prescription.patient.phone_number:
-            sms_service.send_medication_reminder(
-                intake.prescription,
-                intake.scheduled_datetime
+    for schedule in upcoming_schedules:
+        if schedule.prescription.patient.email:
+            scheduled_datetime = timezone.datetime.combine(schedule.date, schedule.time_slot)
+            notification_service.send_medication_reminder(
+                schedule.prescription,
+                scheduled_datetime
             )
     
-    logger.info(f"Sent {upcoming_intakes.count()} medication reminders")
+    logger.info(f"Sent {upcoming_schedules.count()} medication reminders")
 
 @shared_task
 def check_missed_medications():
     """Check for missed medications and send alerts"""
     now = timezone.now()
-    grace_period = now - timedelta(hours=1)  # 1 hour grace period
+    today = now.date()
+    current_time = now.time()
+    grace_period_time = (now - timedelta(hours=1)).time()
     
-    missed_intakes = MedicationIntake.objects.filter(
-        status='pending',
-        scheduled_datetime__lt=grace_period
+    missed_schedules = DailyMedicationSchedule.objects.filter(
+        date=today,
+        is_taken=False,
+        time_slot__lt=grace_period_time
     )
     
-    for intake in missed_intakes:
-        # Mark as missed
-        intake.status = 'missed'
-        intake.save()
-        
+    for schedule in missed_schedules:
         # Send alert if critical or high priority
-        if intake.prescription.priority in ['critical', 'high']:
-            if intake.prescription.patient.phone_number:
-                sms_service.send_missed_medication_alert(
-                    intake.prescription,
-                    intake.scheduled_datetime
+        if schedule.prescription.priority in ['critical', 'high']:
+            if schedule.prescription.patient.email:
+                scheduled_datetime = timezone.datetime.combine(schedule.date, schedule.time_slot)
+                notification_service.send_missed_medication_alert(
+                    schedule.prescription,
+                    scheduled_datetime
                 )
-    
-    logger.info(f"Marked {missed_intakes.count()} medications as missed")
+        
+    logger.info(f"Processed {missed_schedules.count()} missed medications")
 
 @shared_task
 def generate_daily_medication_schedule():
