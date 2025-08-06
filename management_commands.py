@@ -77,6 +77,8 @@ class Command(BaseCommand):
             ('Lisinopril', 'Lisinopril', 'tablet', 'ACE inhibitor for blood pressure'),
             ('Metformin', 'Metformin HCl', 'tablet', 'Diabetes medication'),
             ('Albuterol', 'Albuterol sulfate', 'inhaler', 'Bronchodilator for asthma'),
+            ('Amoxicillin', 'Amoxicillin', 'capsule', 'Antibiotic for bacterial infections'),
+            ('Ibuprofen', 'Ibuprofen', 'tablet', 'Anti-inflammatory pain reliever'),
         ]
         
         for name, generic, med_type, description in medications_data:
@@ -97,6 +99,8 @@ class Command(BaseCommand):
              'Alert: You missed your {medication_name} scheduled for {time}. Please take it as soon as possible.'),
             ('treatment_complete', 'Treatment Complete', 
              'Congratulations {patient_name}! You have completed your treatment course for {medication_name}.'),
+            ('general', 'General Notification',
+             'Hello {patient_name}, this is a message from your healthcare provider: {message}'),
         ]
         
         for notif_type, name, template in templates_data:
@@ -108,12 +112,52 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f'Created notification template: {name}')
         
+        # Create sample daily schedules for existing prescriptions
+        from medications.models import DailyMedicationSchedule
+        from datetime import date, timedelta
+        
+        today = date.today()
+        for i in range(7):  # Create schedules for next 7 days
+            schedule_date = today + timedelta(days=i)
+            
+            # Get all active prescriptions
+            active_prescriptions = Prescription.objects.filter(is_active=True)
+            
+            for prescription in active_prescriptions:
+                # Create schedules based on frequency
+                frequency_times = {
+                    'once_daily': ['09:00'],
+                    'twice_daily': ['09:00', '21:00'],
+                    'three_times_daily': ['08:00', '14:00', '20:00'],
+                    'four_times_daily': ['08:00', '12:00', '16:00', '20:00'],
+                }
+                
+                times = frequency_times.get(prescription.frequency, ['09:00'])
+                
+                for time_str in times:
+                    time_obj = timezone.datetime.strptime(time_str, '%H:%M').time()
+                    
+                    # Check if schedule already exists
+                    if not DailyMedicationSchedule.objects.filter(
+                        prescription=prescription,
+                        date=schedule_date,
+                        time_slot=time_obj
+                    ).exists():
+                        DailyMedicationSchedule.objects.create(
+                            prescription=prescription,
+                            date=schedule_date,
+                            time_slot=time_obj
+                        )
+        
         self.stdout.write(self.style.SUCCESS('Hospital system initialized successfully!'))
         self.stdout.write('')
         self.stdout.write('Login credentials:')
         self.stdout.write('Hospital IT: username=hospital_it, password=it123')
         self.stdout.write('Admin: username=admin, password=admin123')
         self.stdout.write('Patient: username=patient1, password=patient123')
+        self.stdout.write('')
+        self.stdout.write('Note: SMS notifications are simulated if Twilio is not configured.')
+        self.stdout.write('Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in .env for real SMS.')
 
 if __name__ == '__main__':
     command = Command()

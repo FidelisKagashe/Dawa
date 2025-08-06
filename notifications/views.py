@@ -1,5 +1,3 @@
-# notifications/views.py
-
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -37,17 +35,11 @@ def send_manual_notification(request):
 
         try:
             patient = User.objects.get(id=patient_id, user_type='patient')
-            if not patient.email:
-                messages.error(request, "Patient doesn't have an email address")
+            if not patient.phone_number:
+                messages.error(request, "Patient doesn't have a phone number")
             else:
                 notification_service = NotificationService()
-                success = notification_service.send_email_notification(
-                    to_email=patient.email,
-                    subject="Manual Notification from Hospital",
-                    message=message,
-                    notification_type='general',
-                    recipient=patient
-                )
+                success = notification_service.send_manual_notification(patient, message)
 
                 if success:
                     messages.success(request, f"Notification sent to {patient.get_full_name()}")

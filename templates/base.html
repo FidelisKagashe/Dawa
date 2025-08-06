@@ -98,6 +98,11 @@
             transform: translateX(4px);
         }
         
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-right: 3px solid white;
+        }
+        
         .nav-link i {
             width: 20px;
             text-align: center;
@@ -332,8 +337,8 @@
                         Notifications
                     </a>
                     <a href="{% url 'notifications:send_manual' %}" class="nav-link">
-                        <i class="bi bi-chat-text"></i>
-                        Send Message
+                        <i class="bi bi-phone"></i>
+                        Send SMS
                     </a>
                 </div>
                 
@@ -423,7 +428,7 @@
         {% endfor %}
         {% endif %}
         
-        {% block content %}{% endblock %}
+        {% block contentAuth %}{% endblock %}
     </div>
     {% endif %}
     

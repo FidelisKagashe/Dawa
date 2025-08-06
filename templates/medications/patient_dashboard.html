@@ -224,12 +224,18 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Add CSRF token to all AJAX requests
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+    
     // Handle daily medication confirmation
     document.querySelectorAll('.confirm-daily-medication').forEach(button => {
         button.addEventListener('click', function() {
             const scheduleId = this.dataset.scheduleId;
             const formData = new FormData();
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
             
             fetch(`/medications/daily-schedule/confirm/${scheduleId}/`, {
                 method: 'POST',
@@ -251,4 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<!-- Add CSRF token meta tag for AJAX requests -->
+<meta name="csrf-token" content="{{ csrf_token }}">
 {% endblock %}

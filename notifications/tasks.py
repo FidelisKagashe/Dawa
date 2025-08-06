@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 notification_service = NotificationService()
 @shared_task
 def send_medication_reminders():
-    """Send email reminders for upcoming medications"""
+    """Send SMS reminders for upcoming medications"""
     now = timezone.now()
     reminder_time = now + timedelta(minutes=15)  # 15 minutes before
     
@@ -26,7 +26,7 @@ def send_medication_reminders():
     )
     
     for schedule in upcoming_schedules:
-        if schedule.prescription.patient.email:
+        if schedule.prescription.patient.phone_number:
             scheduled_datetime = timezone.datetime.combine(schedule.date, schedule.time_slot)
             notification_service.send_medication_reminder(
                 schedule.prescription,
@@ -52,7 +52,7 @@ def check_missed_medications():
     for schedule in missed_schedules:
         # Send alert if critical or high priority
         if schedule.prescription.priority in ['critical', 'high']:
-            if schedule.prescription.patient.email:
+            if schedule.prescription.patient.phone_number:
                 scheduled_datetime = timezone.datetime.combine(schedule.date, schedule.time_slot)
                 notification_service.send_missed_medication_alert(
                     schedule.prescription,

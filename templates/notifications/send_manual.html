@@ -21,7 +21,7 @@
                             <option value="">Choose a patient...</option>
                             {% for patient in patients %}
                             <option value="{{ patient.id }}">
-                                {{ patient.get_full_name }} ({{ patient.medical_record_number }})
+                                {{ patient.get_full_name }} ({{ patient.medical_record_number }}) - {{ patient.phone_number }}
                             </option>
                             {% endfor %}
                         </select>
@@ -31,12 +31,12 @@
                         <label for="message" class="form-label">Message</label>
                         <textarea name="message" id="message" class="form-control" rows="4" 
                                   placeholder="Enter your message here..." required></textarea>
-                        <div class="form-text">Keep your message clear and concise.</div>
+                        <div class="form-text">Keep your message clear and concise. SMS messages work best under 160 characters.</div>
                     </div>
                     
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send"></i> Send Notification
+                            <i class="bi bi-send"></i> Send SMS
                         </button>
                         <a href="{% url 'medications:admin_dashboard' %}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Cancel

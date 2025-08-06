@@ -21,15 +21,15 @@ class PatientDashboardView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         if not self.request.user.is_patient:
-            return MedicationIntake.objects.none()
+            return DailyMedicationSchedule.objects.none()
         
         today = timezone.now().date()
-        return MedicationIntake.objects.filter(
+        return DailyMedicationSchedule.objects.filter(
             prescription__patient=self.request.user,
             prescription__is_active=True,
-            scheduled_datetime__date=today,
-            status='pending'
-        ).order_by('scheduled_datetime')
+            date=today,
+            is_taken=False
+        ).order_by('time_slot')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -47,6 +47,7 @@ class PatientDashboardView(LoginRequiredMixin, ListView):
             ).order_by('time_slot')
             
             context['daily_schedules'] = daily_schedules
+            context['today'] = today
             
             # Get upcoming schedules for next 7 days
             upcoming_schedules = DailyMedicationSchedule.objects.filter(
@@ -78,19 +79,20 @@ class PatientDashboardView(LoginRequiredMixin, ListView):
             
             # Compliance stats
             week_ago = timezone.now() - timedelta(days=7)
-            total_medications = MedicationIntake.objects.filter(
+            total_daily_schedules = DailyMedicationSchedule.objects.filter(
                 prescription__patient=user,
-                scheduled_datetime__gte=week_ago,
-                status__in=['taken', 'missed', 'skipped']
+                date__gte=week_ago.date(),
+                date__lte=today
             ).count()
             
-            taken_medications = MedicationIntake.objects.filter(
+            taken_medications = DailyMedicationSchedule.objects.filter(
                 prescription__patient=user,
-                scheduled_datetime__gte=week_ago,
-                status='taken'
+                date__gte=week_ago.date(),
+                date__lte=today,
+                is_taken=True
             ).count()
             
-            context['compliance_rate'] = round((taken_medications / total_medications * 100) if total_medications > 0 else 0, 1)
+            context['compliance_rate'] = round((taken_medications / total_daily_schedules * 100) if total_daily_schedules > 0 else 0, 1)
         
         return context
 
@@ -110,9 +112,9 @@ class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         # Dashboard statistics
         context['total_patients'] = User.objects.filter(user_type='patient', is_active=True).count()
         context['active_prescriptions'] = Prescription.objects.filter(is_active=True).count()
-        context['pending_intakes'] = MedicationIntake.objects.filter(
-            status='pending',
-            scheduled_datetime__lt=timezone.now()
+        context['pending_intakes'] = DailyMedicationSchedule.objects.filter(
+            is_taken=False,
+            date__lte=timezone.now().date()
         ).count()
         
         # Recent activities
@@ -266,16 +268,15 @@ class PatientDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         
         # Compliance calculation
         week_ago = timezone.now() - timedelta(days=7)
-        total_medications = MedicationIntake.objects.filter(
+        total_medications = DailyMedicationSchedule.objects.filter(
             prescription__patient=patient,
-            scheduled_datetime__gte=week_ago,
-            status__in=['taken', 'missed', 'skipped']
+            date__gte=week_ago.date()
         ).count()
         
-        taken_medications = MedicationIntake.objects.filter(
+        taken_medications = DailyMedicationSchedule.objects.filter(
             prescription__patient=patient,
-            scheduled_datetime__gte=week_ago,
-            status='taken'
+            date__gte=week_ago.date(),
+            is_taken=True
         ).count()
         
         context['compliance_rate'] = round((taken_medications / total_medications * 100) if total_medications > 0 else 0, 1)

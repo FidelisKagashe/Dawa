@@ -101,8 +101,11 @@ class DailyMedicationSchedule(models.Model):
     @property
     def is_overdue(self):
         if not self.is_taken:
+            now = timezone.now()
             scheduled_datetime = timezone.datetime.combine(self.date, self.time_slot)
-            return timezone.now() > timezone.make_aware(scheduled_datetime)
+            if timezone.is_naive(scheduled_datetime):
+                scheduled_datetime = timezone.make_aware(scheduled_datetime)
+            return now > scheduled_datetime
         return False
     
     class Meta:

@@ -9,8 +9,8 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-bell"></i> 
-                        SMS Notification History
+                        <i class="bi bi-bell"></i>
+                        Notification History
                     </h4>
                 </div>
                 <div class="card-body">
@@ -40,6 +40,9 @@
                                         <span class="badge bg-{% if notification.status == 'sent' %}success{% elif notification.status == 'failed' %}danger{% else %}warning{% endif %}">
                                             {{ notification.get_status_display }}
                                         </span>
+                                        {% if notification.status == 'failed' and notification.error_message %}
+                                        <br><small class="text-danger">{{ notification.error_message|truncatechars:30 }}</small>
+                                        {% endif %}
                                     </td>
                                     <td>{{ notification.scheduled_at|date:"M d, Y g:i A" }}</td>
                                     <td>
@@ -54,8 +57,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
-                    <!-- Pagination -->
+
                     {% if is_paginated %}
                     <nav aria-label="Notification history pagination">
                         <ul class="pagination justify-content-center">
@@ -64,13 +66,13 @@
                                 <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
                             </li>
                             {% endif %}
-                            
+
                             <li class="page-item active">
                                 <span class="page-link">
                                     Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
                                 </span>
                             </li>
-                            
+
                             {% if page_obj.has_next %}
                             <li class="page-item">
                                 <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
@@ -83,7 +85,7 @@
                     <div class="text-center py-5">
                         <i class="bi bi-bell text-muted" style="font-size: 4rem;"></i>
                         <h5 class="text-muted mt-3">No notifications sent yet</h5>
-                        <p class="text-muted">SMS notification history will appear here once notifications are sent.</p>
+                        <p class="text-muted">Notification history will appear here once notifications are sent.</p>
                     </div>
                     {% endif %}
                 </div>
