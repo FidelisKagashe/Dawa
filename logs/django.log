@@ -350,3 +350,254 @@ Prescription created for  (patient) by Asha Juma (admin)
 "GET /notifications/send-manual/ HTTP/1.1" 200 8991
 "POST /notifications/send-manual/ HTTP/1.1" 302 0
 "GET /medications/admin-dashboard/ HTTP/1.1" 200 14653
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 302 0
+Internal Server Error: /medications/dashboard/
+Traceback (most recent call last):
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\base.py", line 220, in _get_response
+    response = response.render()
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\backends\django.py", line 61, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 175, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 966, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 132, in render
+    compiled_parent = self.get_parent(context)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 129, in get_parent
+    return self.find_template(parent, context)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 107, in find_template
+    template, origin = context.template.engine.find_template(
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        template_name,
+        ^^^^^^^^^^^^^^
+        skip=history,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 200, in compile_nodelist
+    return parser.parse()
+           ~~~~~~~~~~~~^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 513, in parse
+    raise self.error(token, e)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\defaulttags.py", line 967, in do_if
+    nodelist = parser.parse(("endif",))
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 513, in parse
+    raise self.error(token, e)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 226, in do_block
+    raise TemplateSyntaxError(
+        "'%s' tag with name '%s' appears more than once" % (bits[0], block_name)
+    )
+django.template.exceptions.TemplateSyntaxError: 'block' tag with name 'content' appears more than once
+"GET /medications/dashboard/ HTTP/1.1" 500 197104
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 2915
+Internal Server Error: /medications/dashboard/
+Traceback (most recent call last):
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\base.py", line 220, in _get_response
+    response = response.render()
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\backends\django.py", line 61, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 175, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 966, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 132, in render
+    compiled_parent = self.get_parent(context)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 129, in get_parent
+    return self.find_template(parent, context)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 107, in find_template
+    template, origin = context.template.engine.find_template(
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        template_name,
+        ^^^^^^^^^^^^^^
+        skip=history,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 200, in compile_nodelist
+    return parser.parse()
+           ~~~~~~~~~~~~^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 513, in parse
+    raise self.error(token, e)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\defaulttags.py", line 967, in do_if
+    nodelist = parser.parse(("endif",))
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 513, in parse
+    raise self.error(token, e)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\template\loader_tags.py", line 226, in do_block
+    raise TemplateSyntaxError(
+        "'%s' tag with name '%s' appears more than once" % (bits[0], block_name)
+    )
+django.template.exceptions.TemplateSyntaxError: 'block' tag with name 'content' appears more than once
+"GET /medications/dashboard/ HTTP/1.1" 500 197241
+"GET /medications/dashboard/ HTTP/1.1" 200 12998
+"GET /accounts/logout/ HTTP/1.1" 302 0
+"GET /accounts/login/ HTTP/1.1" 200 10021
+"POST /accounts/login/ HTTP/1.1" 302 0
+"GET /medications/admin-dashboard/ HTTP/1.1" 200 11906
+"GET /medications/admin-dashboard/ HTTP/1.1" 200 11906
+"GET /medications/prescription/create/ HTTP/1.1" 200 11904
+"GET /medications/user/create/ HTTP/1.1" 200 11902
+"GET /medications/medication/create/ HTTP/1.1" 200 11908
+"GET /reports/ HTTP/1.1" 200 11901
+"GET /reports/ HTTP/1.1" 200 11901
+"GET /notifications/send-manual/ HTTP/1.1" 200 11909
+"GET /accounts/logout/ HTTP/1.1" 302 0
+"GET /accounts/login/ HTTP/1.1" 200 10021
+"POST /accounts/login/ HTTP/1.1" 200 9946
+"POST /accounts/login/ HTTP/1.1" 302 0
+"GET /medications/admin-dashboard/ HTTP/1.1" 200 10742
+Internal Server Error: /medications/dashboard/
+Traceback (most recent call last):
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: medications_dailymedicationschedule
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\views\generic\list.py", line 174, in get
+    context = self.get_context_data()
+  File "C:\projects\Dawa\project\medications\views.py", line 60, in get_context_data
+    for schedule in upcoming_schedules:
+                    ^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\models\query.py", line 398, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\models\query.py", line 1881, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\projects\Dawa\project\venv\Lib\site-packages\django\db\backends\sqlite3\base.py", line 328, in execute
+    return super().execute(query, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: no such table: medications_dailymedicationschedule
+"GET /medications/dashboard/ HTTP/1.1" 500 166985
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 302 0
+"GET /medications/dashboard/ HTTP/1.1" 200 11837
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 2915
+"GET /reports/ HTTP/1.1" 200 10740
+"GET /medications/history/ HTTP/1.1" 200 10742
+"GET /medications/dashboard/ HTTP/1.1" 200 11837
+"GET /medications/dashboard/ HTTP/1.1" 200 11837
+"GET /medications/history/ HTTP/1.1" 200 10742
+"GET /reports/ HTTP/1.1" 200 10740
+"GET /accounts/logout/ HTTP/1.1" 302 0
+"GET /accounts/login/ HTTP/1.1" 200 10021
+"POST /accounts/login/ HTTP/1.1" 200 9946
+"POST /accounts/login/ HTTP/1.1" 302 0
+"GET /medications/admin-dashboard/ HTTP/1.1" 200 10742

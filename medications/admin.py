@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Medication, Prescription, MedicationSchedule, MedicationIntake
+from .models import Medication, Prescription, MedicationSchedule, MedicationIntake, DailyMedicationSchedule
 
 @admin.register(Medication)
 class MedicationAdmin(admin.ModelAdmin):
@@ -22,6 +22,13 @@ class MedicationScheduleAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'scheduled_time')
     raw_id_fields = ('prescription',)
 
+@admin.register(DailyMedicationSchedule)
+class DailyMedicationScheduleAdmin(admin.ModelAdmin):
+    list_display = ('prescription', 'date', 'time_slot', 'is_taken', 'taken_at')
+    list_filter = ('is_taken', 'date', 'created_at')
+    search_fields = ('prescription__medication__name', 'prescription__patient__username')
+    readonly_fields = ('created_at',)
+    raw_id_fields = ('prescription',)
 @admin.register(MedicationIntake)
 class MedicationIntakeAdmin(admin.ModelAdmin):
     list_display = ('prescription', 'scheduled_datetime', 'actual_datetime', 'status')
