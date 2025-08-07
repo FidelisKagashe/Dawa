@@ -1,98 +1,257 @@
-from django import forms
-from django.contrib.auth import get_user_model
-from .models import Prescription, Medication, MedicationIntake, DailyMedicationSchedule
+import logging
+from django.conf import settings
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from twilio.rest import Client
+from .models import SMSNotification, EmailNotification, NotificationTemplate
 
-User = get_user_model()
+logger = logging.getLogger(__name__)
 
-class PrescriptionForm(forms.ModelForm):
-    patient = forms.ModelChoiceField(
-        queryset=User.objects.filter(user_type='patient', is_active=True),
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    medication = forms.ModelChoiceField(
-        queryset=Medication.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
+class NotificationService:
+    def __init__(self):
+        self.twilio_client = None
+        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
+            try:
+                self.twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            except Exception as e:
+                logger.error(f"Failed to initialize Twilio client: {e}")
     
-    class Meta:
-        model = Prescription
-        fields = ['patient', 'medication', 'prescribing_physician', 'dosage', 
-                 'frequency', 'start_date', 'end_date', 'special_instructions', 'priority']
-        widgets = {
-            'prescribing_physician': forms.TextInput(attrs={'class': 'form-control'}),
-            'dosage': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., 500mg, 2 tablets'}),
-            'frequency': forms.Select(attrs={'class': 'form-control'}),
-            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'special_instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'priority': forms.Select(attrs={'class': 'form-control'}),
-        }
+    def send_email_notification(self, email_address, subject, message, html_message=None, 
+                              notification_type='general', recipient=None):
+        """Send email notification and log it to the DB."""
+        # Create the notification record
+        notification = EmailNotification.objects.create(
+            recipient=recipient,
+            email_address=email_address,
+            subject=subject,
+            message=message,
+            html_message=html_message or '',
+            notification_type=notification_type,
+            scheduled_at=timezone.now()
+        )
 
-class MedicationIntakeForm(forms.ModelForm):
-    class Meta:
-        model = MedicationIntake
-        fields = ['notes']
-        widgets = {
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Any notes about this intake...'})
-        }
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email_address],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.save(update_fields=['status', 'sent_at'])
+            logger.info(f"Email sent to {email_address}")
+            return True
+        except Exception as e:
+            logger.error(f"Email send failed to {email_address}: {e}")
+            notification.status = 'failed'
+            notification.error_message = str(e)
+            notification.save(update_fields=['status', 'error_message'])
+            return False
 
-class MedicationForm(forms.ModelForm):
-    class Meta:
-        model = Medication
-        fields = ['name', 'generic_name', 'medication_type', 'description', 'side_effects', 'contraindications']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'generic_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'medication_type': forms.Select(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'side_effects': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'contraindications': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-        }
+    def send_sms_notification(self, phone_number, message, notification_type='general', recipient=None):
+        """Send SMS notification and log it to the DB."""
+        # Create the notification record
+        notification = SMSNotification.objects.create(
+            recipient=recipient,
+            phone_number=phone_number,
+            message=message,
+            notification_type=notification_type,
+            scheduled_at=timezone.now()
+        )
 
-class UserCreationByAdminForm(forms.ModelForm):
-    password1 = forms.CharField(
-        label='Password',
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
-    password2 = forms.CharField(
-        label='Confirm Password',
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
-    
-    class Meta:
-        model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'phone_number', 
-                 'date_of_birth', 'user_type', 'emergency_contact', 'emergency_phone']
-        widgets = {
-            'username': forms.TextInput(attrs={'class': 'form-control'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'user_type': forms.Select(attrs={'class': 'form-control'}),
-            'emergency_contact': forms.TextInput(attrs={'class': 'form-control'}),
-            'emergency_phone': forms.TextInput(attrs={'class': 'form-control'}),
-        }
-    
-    def clean_password2(self):
-        password1 = self.cleaned_data.get("password1")
-        password2 = self.cleaned_data.get("password2")
-        if password1 and password2 and password1 != password2:
-            raise forms.ValidationError("Passwords don't match")
-        return password2
-    
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password1"])
-        if commit:
-            user.save()
-        return user
+        if not self.twilio_client:
+            logger.warning("Twilio client not configured, simulating SMS send")
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.twilio_sid = 'simulated_' + str(notification.id)[:8]
+            notification.save(update_fields=['status', 'sent_at', 'twilio_sid'])
+            logger.info(f"Simulated SMS sent to {phone_number}: {message}")
+            return True
 
-class DailyScheduleConfirmForm(forms.ModelForm):
-    class Meta:
-        model = DailyMedicationSchedule
-        fields = ['notes']
-        widgets = {
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Any notes about taking this medication...'})
-        }
+        try:
+            message_obj = self.twilio_client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=phone_number
+            )
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.twilio_sid = message_obj.sid
+            notification.save(update_fields=['status', 'sent_at'])
+            logger.info(f"SMS sent to {phone_number}")
+            return True
+        except Exception as e:
+            logger.error(f"SMS send failed to {phone_number}: {e}")
+            notification.status = 'failed'
+            notification.error_message = str(e)
+            notification.save(update_fields=['status', 'error_message'])
+            return False
+
+    def send_medication_reminder_email(self, prescription, scheduled_datetime):
+        """Send a medication reminder email."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='medication_reminder', is_active=True
+        ).first()
+
+        if tpl:
+            message = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                dosage=prescription.dosage,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            message = (
+                f"Habari {prescription.patient.get_full_name()},\n\n"
+                f"Hii ni ukumbusho wa kutumia dawa yako:\n"
+                f"Dawa: {prescription.medication.name}\n"
+                f"Kipimo: {prescription.dosage}\n"
+                f"Muda: {scheduled_datetime.strftime('%I:%M %p')}\n\n"
+                f"Tafadhali tumia dawa yako kwa wakati na uthibitishe kupitia mfumo wetu.\n\n"
+                f"Asante,\nTimu ya MedCare"
+            )
+
+        subject = f"Ukumbusho wa Dawa - {prescription.medication.name}"
+        
+        # Create HTML version
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563EB;">🏥 MedCare - Ukumbusho wa Dawa</h2>
+                <p>Habari <strong>{prescription.patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #059669; margin-top: 0;">Muda wa Dawa Umefika!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Kipimo:</strong> {prescription.dosage}</p>
+                    <p><strong>Muda:</strong> {scheduled_datetime.strftime('%I:%M %p')}</p>
+                </div>
+                <p>Tafadhali tumia dawa yako kwa wakati na uthibitishe kupitia mfumo wetu.</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=prescription.patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='medication_reminder',
+            recipient=prescription.patient
+        )
+
+    def send_missed_medication_alert_email(self, prescription, scheduled_datetime):
+        """Send a missed medication alert email."""
+        subject = f"Onyo la Dawa - {prescription.medication.name}"
+        
+        message = (
+            f"Habari {prescription.patient.get_full_name()},\n\n"
+            f"Umesahau kutumia dawa yako:\n"
+            f"Dawa: {prescription.medication.name}\n"
+            f"Muda uliokuwa umepangwa: {scheduled_datetime.strftime('%I:%M %p')}\n\n"
+            f"Tafadhali tumia dawa yako haraka iwezekanavyo na uthibitishe kupitia mfumo wetu.\n\n"
+            f"Asante,\nTimu ya MedCare"
+        )
+        
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #DC2626;">⚠️ MedCare - Onyo la Dawa</h2>
+                <p>Habari <strong>{prescription.patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #DC2626;">
+                    <h3 style="color: #DC2626; margin-top: 0;">Umesahau Dawa Yako!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Muda uliokuwa umepangwa:</strong> {scheduled_datetime.strftime('%I:%M %p')}</p>
+                </div>
+                <p>Tafadhali tumia dawa yako haraka iwezekanavyo na uthibitishe kupitia mfumo wetu.</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=prescription.patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='missed_medication',
+            recipient=prescription.patient
+        )
+
+    def send_medication_reminder(self, prescription, scheduled_datetime):
+        """Send a medication reminder SMS."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='medication_reminder', is_active=True
+        ).first()
+
+        if tpl:
+            body = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                dosage=prescription.dosage,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            body = (
+                f"Reminder: time to take your {prescription.medication.name} "
+                f"({prescription.dosage}) at {scheduled_datetime.strftime('%I:%M %p')}."
+            )
+
+        return self.send_sms_notification(
+            phone_number=prescription.patient.phone_number,
+            message=body,
+            notification_type='medication_reminder',
+            recipient=prescription.patient
+        )
+
+    def send_missed_medication_alert(self, prescription, scheduled_datetime):
+        """Send a missed medication alert SMS."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='missed_medication', is_active=True
+        ).first()
+
+        if tpl:
+            body = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            body = (
+                f"Alert: you missed your {prescription.medication.name} scheduled for "
+                f"{scheduled_datetime.strftime('%I:%M %p')}. Please take it ASAP."
+            )
+
+        return self.send_sms_notification(
+            phone_number=prescription.patient.phone_number,
+            message=body,
+            notification_type='missed_medication',
+            recipient=prescription.patient
+        )
+
+    def send_manual_notification(self, patient, message, use_email=True):
+        """Send a manual notification SMS."""
+        if use_email and patient.email:
+            return self.send_email_notification(
+                email_address=patient.email,
+                subject="Ujumbe kutoka Hospitali",
+                message=message,
+                notification_type='general',
+                recipient=patient
+            )
+        else:
+            return self.send_sms_notification(
+                phone_number=patient.phone_number,
+                message=message,
+                notification_type='general',
+                recipient=patient
+            )

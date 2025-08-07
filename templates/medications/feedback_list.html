@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}Patient Feedback - MedCare{% endblock %}
+{% block page_title %}Patient Feedback{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ feedbacks.count }}</h3>
+                <p class="mb-0 text-muted">Total Feedback</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning">{{ unread_count }}</h3>
+                <p class="mb-0 text-muted">Unread Feedback</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-chat-text"></i> 
+            Patient Feedback
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if feedbacks %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Medication</th>
+                        <th>Feedback Type</th>
+                        <th>Message</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feedback in feedbacks %}
+                    <tr class="{% if not feedback.is_read %}table-warning{% endif %}">
+                        <td>
+                            <strong>{{ feedback.daily_schedule.prescription.patient.get_full_name }}</strong><br>
+                            <small class="text-muted">{{ feedback.daily_schedule.prescription.patient.medical_record_number }}</small>
+                        </td>
+                        <td>
+                            {{ feedback.daily_schedule.prescription.medication.name }}<br>
+                            <small class="text-muted">{{ feedback.daily_schedule.date }} at {{ feedback.daily_schedule.time_slot|time:"g:i A" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if feedback.feedback_type == 'taken' %}success{% elif feedback.feedback_type == 'missed' %}warning{% elif feedback.feedback_type == 'side_effect' %}danger{% else %}info{% endif %}">
+                                {{ feedback.get_feedback_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ feedback.message|truncatechars:100 }}</td>
+                        <td>{{ feedback.created_at|date:"M d, Y g:i A" }}</td>
+                        <td>
+                            {% if feedback.is_read %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Read
+                            </span>
+                            <br><small class="text-muted">by {{ feedback.read_by.get_full_name }}</small>
+                            {% else %}
+                            <span class="badge bg-warning">
+                                <i class="bi bi-exclamation-circle"></i> Unread
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not feedback.is_read %}
+                            <button class="btn btn-outline-primary btn-sm mark-read" 
+                                    data-feedback-id="{{ feedback.id }}">
+                                <i class="bi bi-check"></i> Mark Read
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-outline-info btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#feedbackDetailModal{{ feedback.id }}">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                    
+                    <!-- Feedback Detail Modal -->
+                    <div class="modal fade" id="feedbackDetailModal{{ feedback.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Feedback Details</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Patient Information</h6>
+                                            <p><strong>Name:</strong> {{ feedback.daily_schedule.prescription.patient.get_full_name }}</p>
+                                            <p><strong>MRN:</strong> {{ feedback.daily_schedule.prescription.patient.medical_record_number }}</p>
+                                            <p><strong>Email:</strong> {{ feedback.daily_schedule.prescription.patient.email }}</p>
+                                            <p><strong>Phone:</strong> {{ feedback.daily_schedule.prescription.patient.phone_number }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Medication Information</h6>
+                                            <p><strong>Medication:</strong> {{ feedback.daily_schedule.prescription.medication.name }}</p>
+                                            <p><strong>Dosage:</strong> {{ feedback.daily_schedule.prescription.dosage }}</p>
+                                            <p><strong>Scheduled:</strong> {{ feedback.daily_schedule.date }} at {{ feedback.daily_schedule.time_slot|time:"g:i A" }}</p>
+                                            <p><strong>Priority:</strong> 
+                                                <span class="badge bg-{{ feedback.daily_schedule.prescription.priority }}">
+                                                    {{ feedback.daily_schedule.prescription.get_priority_display }}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <h6>Feedback</h6>
+                                    <p><strong>Type:</strong> 
+                                        <span class="badge bg-{% if feedback.feedback_type == 'taken' %}success{% elif feedback.feedback_type == 'missed' %}warning{% elif feedback.feedback_type == 'side_effect' %}danger{% else %}info{% endif %}">
+                                            {{ feedback.get_feedback_type_display }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Message:</strong></p>
+                                    <div class="alert alert-light">
+                                        {{ feedback.message }}
+                                    </div>
+                                    <p><strong>Submitted:</strong> {{ feedback.created_at|date:"M d, Y g:i A" }}</p>
+                                    
+                                    {% if feedback.is_read %}
+                                    <p><strong>Read by:</strong> {{ feedback.read_by.get_full_name }} on {{ feedback.read_at|date:"M d, Y g:i A" }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    {% if not feedback.is_read %}
+                                    <button class="btn btn-primary mark-read" 
+                                            data-feedback-id="{{ feedback.id }}">
+                                        <i class="bi bi-check"></i> Mark as Read
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Feedback pagination">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-chat-text text-muted" style="font-size: 4rem;"></i>
+            <h5 class="text-muted mt-3">No feedback received yet</h5>
+            <p class="text-muted">Patient feedback will appear here once they start providing feedback.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle mark as read
+    document.querySelectorAll('.mark-read').forEach(button => {
+        button.addEventListener('click', function() {
+            const feedbackId = this.dataset.feedbackId;
+            
+            fetch(`/medications/feedback/read/${feedbackId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                                  document.querySelector('meta[name=csrf-token]')?.getAttribute('content'),
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Failed to mark as read');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+        });
+    });
+});
+</script>
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}

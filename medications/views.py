@@ -1,328 +1,257 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, CreateView, UpdateView, DetailView, TemplateView
-from django.contrib import messages
-from django.utils import timezone
-from django.http import JsonResponse
-from django.db.models import Q, Count
-from datetime import datetime, timedelta, date
 import logging
-
-from .models import Prescription, MedicationIntake, Medication, MedicationSchedule, DailyMedicationSchedule
-from .forms import PrescriptionForm, MedicationIntakeForm, MedicationForm, UserCreationByAdminForm, DailyScheduleConfirmForm
-from accounts.models import User, PatientProfile
+from django.conf import settings
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from twilio.rest import Client
+from .models import SMSNotification, EmailNotification, NotificationTemplate
 
 logger = logging.getLogger(__name__)
 
-class PatientDashboardView(LoginRequiredMixin, ListView):
-    template_name = 'medications/patient_dashboard.html'
-    context_object_name = 'upcoming_medications'
+class NotificationService:
+    def __init__(self):
+        self.twilio_client = None
+        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
+            try:
+                self.twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            except Exception as e:
+                logger.error(f"Failed to initialize Twilio client: {e}")
     
-    def get_queryset(self):
-        if not self.request.user.is_patient:
-            return DailyMedicationSchedule.objects.none()
-        
-        today = timezone.now().date()
-        return DailyMedicationSchedule.objects.filter(
-            prescription__patient=self.request.user,
-            prescription__is_active=True,
-            date=today,
-            is_taken=False
-        ).order_by('time_slot')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user = self.request.user
-        
-        if user.is_patient:
-            # Get today's medication schedule in card format
-            today = timezone.now().date()
-            
-            # Get daily schedules for today
-            daily_schedules = DailyMedicationSchedule.objects.filter(
-                prescription__patient=user,
-                prescription__is_active=True,
-                date=today
-            ).order_by('time_slot')
-            
-            context['daily_schedules'] = daily_schedules
-            context['today'] = today
-            
-            # Get upcoming schedules for next 7 days
-            upcoming_schedules = DailyMedicationSchedule.objects.filter(
-                prescription__patient=user,
-                prescription__is_active=True,
-                date__range=[today, today + timedelta(days=7)]
-            ).order_by('date', 'time_slot')
-            
-            # Group by date for card display
-            schedule_by_date = {}
-            for schedule in upcoming_schedules:
-                if schedule.date not in schedule_by_date:
-                    schedule_by_date[schedule.date] = []
-                schedule_by_date[schedule.date].append(schedule)
-            
-            context['schedule_by_date'] = schedule_by_date
-            
-            # Get recent history
-            context['recent_history'] = MedicationIntake.objects.filter(
-                prescription__patient=user,
-                status__in=['taken', 'missed', 'skipped']
-            ).order_by('-scheduled_datetime')[:10]
-            
-            # Get active prescriptions
-            context['active_prescriptions'] = Prescription.objects.filter(
-                patient=user,
-                is_active=True
-            ).order_by('-created_at')
-            
-            # Compliance stats
-            week_ago = timezone.now() - timedelta(days=7)
-            total_daily_schedules = DailyMedicationSchedule.objects.filter(
-                prescription__patient=user,
-                date__gte=week_ago.date(),
-                date__lte=today
-            ).count()
-            
-            taken_medications = DailyMedicationSchedule.objects.filter(
-                prescription__patient=user,
-                date__gte=week_ago.date(),
-                date__lte=today,
-                is_taken=True
-            ).count()
-            
-            context['compliance_rate'] = round((taken_medications / total_daily_schedules * 100) if total_daily_schedules > 0 else 0, 1)
-        
-        return context
+    def send_email_notification(self, email_address, subject, message, html_message=None, 
+                              notification_type='general', recipient=None):
+        """Send email notification and log it to the DB."""
+        # Create the notification record
+        notification = EmailNotification.objects.create(
+            recipient=recipient,
+            email_address=email_address,
+            subject=subject,
+            message=message,
+            html_message=html_message or '',
+            notification_type=notification_type,
+            scheduled_at=timezone.now()
+        )
 
-class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    template_name = 'medications/admin_dashboard.html'
-    context_object_name = 'patients'
-    
-    def test_func(self):
-        return self.request.user.can_manage_patients
-    
-    def get_queryset(self):
-        return User.objects.filter(user_type='patient', is_active=True).order_by('-date_joined')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Dashboard statistics
-        context['total_patients'] = User.objects.filter(user_type='patient', is_active=True).count()
-        context['active_prescriptions'] = Prescription.objects.filter(is_active=True).count()
-        context['pending_intakes'] = DailyMedicationSchedule.objects.filter(
-            is_taken=False,
-            date__lte=timezone.now().date()
-        ).count()
-        
-        # Recent activities
-        context['recent_prescriptions'] = Prescription.objects.filter(
-            is_active=True
-        ).order_by('-created_at')[:5]
-        
-        # Staff management for Hospital IT
-        if self.request.user.can_manage_staff:
-            context['total_staff'] = User.objects.filter(user_type='admin', is_active=True).count()
-            context['recent_staff'] = User.objects.filter(user_type='admin', is_active=True).order_by('-date_joined')[:5]
-        
-        return context
-
-class PrescriptionCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = Prescription
-    form_class = PrescriptionForm
-    template_name = 'medications/prescription_form.html'
-    
-    def test_func(self):
-        return self.request.user.can_manage_patients
-    
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        response = super().form_valid(form)
-        
-        # Create medication schedules based on frequency
-        self.create_medication_schedules(form.instance)
-        
-        messages.success(self.request, "Prescription created successfully!")
-        logger.info(f"Prescription created for {form.instance.patient} by {self.request.user}")
-        
-        return response
-    
-    def create_medication_schedules(self, prescription):
-        """Create medication schedules based on frequency"""
-        frequency_times = {
-            'once_daily': ['09:00'],
-            'twice_daily': ['09:00', '21:00'],
-            'three_times_daily': ['08:00', '14:00', '20:00'],
-            'four_times_daily': ['08:00', '12:00', '16:00', '20:00'],
-            'every_6_hours': ['06:00', '12:00', '18:00', '00:00'],
-            'every_8_hours': ['08:00', '16:00', '00:00'],
-            'every_12_hours': ['08:00', '20:00'],
-        }
-        
-        times = frequency_times.get(prescription.frequency, ['09:00'])
-        
-        # Create base schedule
-        for time_str in times:
-            hour, minute = map(int, time_str.split(':'))
-            scheduled_time = timezone.datetime.strptime(time_str, '%H:%M').time()
-            
-            MedicationSchedule.objects.create(
-                prescription=prescription,
-                scheduled_time=scheduled_time
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email_address],
+                html_message=html_message,
+                fail_silently=False,
             )
-        
-        # Create daily schedules for the prescription period
-        self.create_daily_schedules(prescription, times)
-    
-    def create_daily_schedules(self, prescription, times):
-        """Create daily medication schedules for the prescription period"""
-        start_date = prescription.start_date
-        end_date = prescription.end_date or (start_date + timedelta(days=30))  # Default 30 days if no end date
-        
-        current_date = start_date
-        while current_date <= end_date:
-            for time_str in times:
-                time_obj = timezone.datetime.strptime(time_str, '%H:%M').time()
-                
-                # Check if schedule already exists
-                if not DailyMedicationSchedule.objects.filter(
-                    prescription=prescription,
-                    date=current_date,
-                    time_slot=time_obj
-                ).exists():
-                    DailyMedicationSchedule.objects.create(
-                        prescription=prescription,
-                        date=current_date,
-                        time_slot=time_obj
-                    )
-            
-            current_date += timedelta(days=1)
-    
-    def get_success_url(self):
-        return f"/medications/admin/patient/{self.object.patient.id}/"
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.save(update_fields=['status', 'sent_at'])
+            logger.info(f"Email sent to {email_address}")
+            return True
+        except Exception as e:
+            logger.error(f"Email send failed to {email_address}: {e}")
+            notification.status = 'failed'
+            notification.error_message = str(e)
+            notification.save(update_fields=['status', 'error_message'])
+            return False
 
-@login_required
-def confirm_daily_medication(request, schedule_id):
-    """Confirm daily medication intake"""
-    schedule = get_object_or_404(DailyMedicationSchedule, id=schedule_id)
-    
-    if request.user != schedule.prescription.patient:
-        messages.error(request, "You can only confirm your own medications.")
-        return redirect('medications:dashboard')
-    
-    if request.method == 'POST':
-        schedule.is_taken = True
-        schedule.taken_at = timezone.now()
-        schedule.notes = request.POST.get('notes', '')
-        schedule.save()
-        
-        messages.success(request, f"Medication confirmed: {schedule.prescription.medication.name}")
-        logger.info(f"Daily medication confirmed: {schedule}")
-        
-        return JsonResponse({'status': 'success'})
-    
-    return JsonResponse({'status': 'error'})
-@login_required
-def confirm_medication_intake(request, intake_id):
-    intake = get_object_or_404(MedicationIntake, id=intake_id)
-    
-    if request.user != intake.prescription.patient:
-        messages.error(request, "You can only confirm your own medications.")
-        return redirect('medications:dashboard')
-    
-    if request.method == 'POST':
-        intake.status = 'taken'
-        intake.actual_datetime = timezone.now()
-        intake.notes = request.POST.get('notes', '')
-        intake.save()
-        
-        messages.success(request, f"Medication intake confirmed for {intake.prescription.medication.name}")
-        logger.info(f"Medication intake confirmed: {intake}")
-        
-        return JsonResponse({'status': 'success'})
-    
-    return JsonResponse({'status': 'error'})
+    def send_sms_notification(self, phone_number, message, notification_type='general', recipient=None):
+        """Send SMS notification and log it to the DB."""
+        # Create the notification record
+        notification = SMSNotification.objects.create(
+            recipient=recipient,
+            phone_number=phone_number,
+            message=message,
+            notification_type=notification_type,
+            scheduled_at=timezone.now()
+        )
 
-class PatientDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
-    model = User
-    template_name = 'medications/patient_detail.html'
-    context_object_name = 'patient'
-    
-    def test_func(self):
-        return self.request.user.can_manage_patients
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        patient = self.get_object()
-        
-        context['active_prescriptions'] = Prescription.objects.filter(
-            patient=patient,
-            is_active=True
-        ).order_by('-created_at')
-        
-        context['recent_intakes'] = MedicationIntake.objects.filter(
-            prescription__patient=patient
-        ).order_by('-scheduled_datetime')[:20]
-        
-        # Compliance calculation
-        week_ago = timezone.now() - timedelta(days=7)
-        total_medications = DailyMedicationSchedule.objects.filter(
-            prescription__patient=patient,
-            date__gte=week_ago.date()
-        ).count()
-        
-        taken_medications = DailyMedicationSchedule.objects.filter(
-            prescription__patient=patient,
-            date__gte=week_ago.date(),
-            is_taken=True
-        ).count()
-        
-        context['compliance_rate'] = round((taken_medications / total_medications * 100) if total_medications > 0 else 0, 1)
-        
-        return context
+        if not self.twilio_client:
+            logger.warning("Twilio client not configured, simulating SMS send")
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.twilio_sid = 'simulated_' + str(notification.id)[:8]
+            notification.save(update_fields=['status', 'sent_at', 'twilio_sid'])
+            logger.info(f"Simulated SMS sent to {phone_number}: {message}")
+            return True
 
-class MedicationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = Medication
-    form_class = MedicationForm
-    template_name = 'medications/medication_form.html'
-    success_url = '/medications/admin-dashboard/'
-    
-    def test_func(self):
-        return self.request.user.can_manage_patients
-    
-    def form_valid(self, form):
-        messages.success(self.request, f"Medication '{form.instance.name}' created successfully!")
-        return super().form_valid(form)
+        try:
+            message_obj = self.twilio_client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=phone_number
+            )
+            notification.status = 'sent'
+            notification.sent_at = timezone.now()
+            notification.twilio_sid = message_obj.sid
+            notification.save(update_fields=['status', 'sent_at'])
+            logger.info(f"SMS sent to {phone_number}")
+            return True
+        except Exception as e:
+            logger.error(f"SMS send failed to {phone_number}: {e}")
+            notification.status = 'failed'
+            notification.error_message = str(e)
+            notification.save(update_fields=['status', 'error_message'])
+            return False
 
-class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = User
-    form_class = UserCreationByAdminForm
-    template_name = 'medications/user_form.html'
-    success_url = '/medications/admin-dashboard/'
-    
-    def test_func(self):
-        return self.request.user.can_manage_patients
-    
-    def form_valid(self, form):
-        user = form.save()
-        
-        # Create patient profile if user is a patient
-        if user.user_type == 'patient':
-            PatientProfile.objects.create(user=user)
-        
-        messages.success(self.request, f"User '{user.get_full_name()}' created successfully!")
-        return super().form_valid(form)
+    def send_medication_reminder_email(self, prescription, scheduled_datetime):
+        """Send a medication reminder email."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='medication_reminder', is_active=True
+        ).first()
 
-class MedicationHistoryView(LoginRequiredMixin, ListView):
-    template_name = 'medications/medication_history.html'
-    context_object_name = 'medication_history'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        if self.request.user.is_patient:
-            return MedicationIntake.objects.filter(
-                prescription__patient=self.request.user
-            ).order_by('-scheduled_datetime')
-        return MedicationIntake.objects.none()
+        if tpl:
+            message = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                dosage=prescription.dosage,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            message = (
+                f"Habari {prescription.patient.get_full_name()},\n\n"
+                f"Hii ni ukumbusho wa kutumia dawa yako:\n"
+                f"Dawa: {prescription.medication.name}\n"
+                f"Kipimo: {prescription.dosage}\n"
+                f"Muda: {scheduled_datetime.strftime('%I:%M %p')}\n\n"
+                f"Tafadhali tumia dawa yako kwa wakati na uthibitishe kupitia mfumo wetu.\n\n"
+                f"Asante,\nTimu ya MedCare"
+            )
+
+        subject = f"Ukumbusho wa Dawa - {prescription.medication.name}"
+        
+        # Create HTML version
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563EB;">🏥 MedCare - Ukumbusho wa Dawa</h2>
+                <p>Habari <strong>{prescription.patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #059669; margin-top: 0;">Muda wa Dawa Umefika!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Kipimo:</strong> {prescription.dosage}</p>
+                    <p><strong>Muda:</strong> {scheduled_datetime.strftime('%I:%M %p')}</p>
+                </div>
+                <p>Tafadhali tumia dawa yako kwa wakati na uthibitishe kupitia mfumo wetu.</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=prescription.patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='medication_reminder',
+            recipient=prescription.patient
+        )
+
+    def send_missed_medication_alert_email(self, prescription, scheduled_datetime):
+        """Send a missed medication alert email."""
+        subject = f"Onyo la Dawa - {prescription.medication.name}"
+        
+        message = (
+            f"Habari {prescription.patient.get_full_name()},\n\n"
+            f"Umesahau kutumia dawa yako:\n"
+            f"Dawa: {prescription.medication.name}\n"
+            f"Muda uliokuwa umepangwa: {scheduled_datetime.strftime('%I:%M %p')}\n\n"
+            f"Tafadhali tumia dawa yako haraka iwezekanavyo na uthibitishe kupitia mfumo wetu.\n\n"
+            f"Asante,\nTimu ya MedCare"
+        )
+        
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #DC2626;">⚠️ MedCare - Onyo la Dawa</h2>
+                <p>Habari <strong>{prescription.patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #DC2626;">
+                    <h3 style="color: #DC2626; margin-top: 0;">Umesahau Dawa Yako!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Muda uliokuwa umepangwa:</strong> {scheduled_datetime.strftime('%I:%M %p')}</p>
+                </div>
+                <p>Tafadhali tumia dawa yako haraka iwezekanavyo na uthibitishe kupitia mfumo wetu.</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=prescription.patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='missed_medication',
+            recipient=prescription.patient
+        )
+
+    def send_medication_reminder(self, prescription, scheduled_datetime):
+        """Send a medication reminder SMS."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='medication_reminder', is_active=True
+        ).first()
+
+        if tpl:
+            body = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                dosage=prescription.dosage,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            body = (
+                f"Reminder: time to take your {prescription.medication.name} "
+                f"({prescription.dosage}) at {scheduled_datetime.strftime('%I:%M %p')}."
+            )
+
+        return self.send_sms_notification(
+            phone_number=prescription.patient.phone_number,
+            message=body,
+            notification_type='medication_reminder',
+            recipient=prescription.patient
+        )
+
+    def send_missed_medication_alert(self, prescription, scheduled_datetime):
+        """Send a missed medication alert SMS."""
+        tpl = NotificationTemplate.objects.filter(
+            notification_type='missed_medication', is_active=True
+        ).first()
+
+        if tpl:
+            body = tpl.template.format(
+                patient_name=prescription.patient.get_full_name(),
+                medication_name=prescription.medication.name,
+                time=scheduled_datetime.strftime('%I:%M %p')
+            )
+        else:
+            body = (
+                f"Alert: you missed your {prescription.medication.name} scheduled for "
+                f"{scheduled_datetime.strftime('%I:%M %p')}. Please take it ASAP."
+            )
+
+        return self.send_sms_notification(
+            phone_number=prescription.patient.phone_number,
+            message=body,
+            notification_type='missed_medication',
+            recipient=prescription.patient
+        )
+
+    def send_manual_notification(self, patient, message, use_email=True):
+        """Send a manual notification SMS."""
+        if use_email and patient.email:
+            return self.send_email_notification(
+                email_address=patient.email,
+                subject="Ujumbe kutoka Hospitali",
+                message=message,
+                notification_type='general',
+                recipient=patient
+            )
+        else:
+            return self.send_sms_notification(
+                phone_number=patient.phone_number,
+                message=message,
+                notification_type='general',
+                recipient=patient
+            )
