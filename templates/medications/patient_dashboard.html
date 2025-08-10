@@ -32,47 +32,6 @@ class NotificationService:
             message=message,
             html_message=html_message or '',
             notification_type=notification_type,
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const scheduleId = this.dataset.scheduleId;
-            const formData = new FormData(this);
-            
-            fetch(`/medications/feedback/submit/${scheduleId}/`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById(`feedbackModal${scheduleId}`));
-                    modal.hide();
-                    
-                    // Show success message
-                    alert('Maoni yako yamepokewa. Asante!');
-                    location.reload();
-                } else {
-                    alert('Kuna tatizo. Jaribu tena.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Kuna tatizo la mtandao');
-            });
-        });
-    });
-    
-    def send_email_notification(self, email_address, subject, message, html_message=None, 
-                              notification_type='general', recipient=None):
-        """Send email notification and log it to the DB."""
-        # Create the notification record
-        notification = EmailNotification.objects.create(
-            recipient=recipient,
-            email_address=email_address,
-            subject=subject,
-            message=message,
-            html_message=html_message or '',
-            notification_type=notification_type,
             scheduled_at=timezone.now()
         )
 
