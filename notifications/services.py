@@ -187,6 +187,48 @@ class NotificationService:
             recipient=prescription.patient
         )
 
+    def send_medication_confirmation_email(self, prescription, taken_at):
+        """Send confirmation email when medication is taken"""
+        subject = f"Dawa Imetumika - {prescription.medication.name}"
+        
+        message = (
+            f"Habari {prescription.patient.get_full_name()},\n\n"
+            f"Tumepokea uthibitisho kwamba umetumia dawa yako:\n"
+            f"Dawa: {prescription.medication.name}\n"
+            f"Kipimo: {prescription.dosage}\n"
+            f"Muda uliotumia: {taken_at.strftime('%I:%M %p')}\n\n"
+            f"Asante kwa kufuata mipango ya dawa. Endelea hivyo!\n\n"
+            f"Asante,\nTimu ya MedCare"
+        )
+        
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #059669;">✅ MedCare - Dawa Imetumika</h2>
+                <p>Habari <strong>{prescription.patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+                    <h3 style="color: #059669; margin-top: 0;">Dawa Imetumika Kikamilifu!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Kipimo:</strong> {prescription.dosage}</p>
+                    <p><strong>Muda uliotumia:</strong> {taken_at.strftime('%I:%M %p')}</p>
+                </div>
+                <p>Asante kwa kufuata mipango ya dawa. Endelea hivyo!</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=prescription.patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='medication_confirmation',
+            recipient=prescription.patient
+        )
+
     def send_medication_reminder(self, prescription, scheduled_datetime):
         """Send a medication reminder SMS."""
         tpl = NotificationTemplate.objects.filter(

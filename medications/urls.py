@@ -4,9 +4,6 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 from twilio.rest import Client
 from .models import SMSNotification, EmailNotification, NotificationTemplate
 
@@ -20,18 +17,6 @@ class NotificationService:
                 self.twilio_client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
             except Exception as e:
                 logger.error(f"Failed to initialize Twilio client: {e}")
-    
-    def send_email_notification(self, email_address, subject, message, html_message=None, 
-                              notification_type='general', recipient=None):
-        """Send email notification and log it to the DB."""
-        # Create the notification record
-        notification = EmailNotification.objects.create(
-            recipient=recipient,
-            email_address=email_address,
-            subject=subject,
-            message=message,
-            html_message=html_message or '',
-            notification_type=notification_type,
     
     def send_email_notification(self, email_address, subject, message, html_message=None, 
                               notification_type='general', recipient=None):

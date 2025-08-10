@@ -255,3 +255,50 @@ class NotificationService:
                 notification_type='general',
                 recipient=patient
             )
+
+    def send_medication_taken_confirmation(self, daily_schedule):
+        """Send confirmation email when medication is taken."""
+        prescription = daily_schedule.prescription
+        patient = prescription.patient
+        
+        subject = f"Uthibitisho wa Dawa - {prescription.medication.name}"
+        
+        message = (
+            f"Habari {patient.get_full_name()},\n\n"
+            f"Tumepokea uthibitisho wako wa kutumia dawa:\n"
+            f"Dawa: {prescription.medication.name}\n"
+            f"Kipimo: {prescription.dosage}\n"
+            f"Muda: {daily_schedule.time_slot.strftime('%I:%M %p')}\n"
+            f"Tarehe: {daily_schedule.date.strftime('%d/%m/%Y')}\n\n"
+            f"Hongera kwa kufuata mipango ya dawa yako!\n\n"
+            f"Asante,\nTimu ya MedCare"
+        )
+        
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #059669;">✅ MedCare - Uthibitisho wa Dawa</h2>
+                <p>Habari <strong>{patient.get_full_name()}</strong>,</p>
+                <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+                    <h3 style="color: #059669; margin-top: 0;">Dawa Imetumika!</h3>
+                    <p><strong>Dawa:</strong> {prescription.medication.name}</p>
+                    <p><strong>Kipimo:</strong> {prescription.dosage}</p>
+                    <p><strong>Muda:</strong> {daily_schedule.time_slot.strftime('%I:%M %p')}</p>
+                    <p><strong>Tarehe:</strong> {daily_schedule.date.strftime('%d/%m/%Y')}</p>
+                </div>
+                <p>Hongera kwa kufuata mipango ya dawa yako!</p>
+                <p style="margin-top: 30px;">Asante,<br><strong>Timu ya MedCare</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self.send_email_notification(
+            email_address=patient.email,
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            notification_type='medication_confirmation',
+            recipient=patient
+        )
